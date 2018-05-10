@@ -1,0 +1,177 @@
+// ==UserScript==
+// @name Set Arrival Time
+// @description Set the desired arrival time in Tribal Wars and the script will automatically send the attack
+// @author FunnyPocketBook
+// @version 2.1.2
+// @date 03-10-2017
+// @namespace FunnyPocketBook
+// @include https://*/game.php?village=*&screen=place&try=confirm
+// ==/UserScript==
+
+// CHANGE THESE NUMBERS TO GET THE CORRECT ARRIVAL TIME - higher number means more delay. 
+// Change "windows.delayTime" before "intervalTime" and only change "intervalTime" if you 
+// can't get it quite correct with only "delayTime"
+delayTime =10; // Set delay in ms
+window.intervalTime = 10; // Set interval in ms
+
+
+
+var arrival;
+var reload;
+
+/*
+*  Reload boolean - set to true to reload, false to not reload
+*/
+try {
+    var storedReload = JSON.parse(sessionStorage.storedReload); // Get storedReload
+}
+catch(err) {
+    storedReload = [];
+    sessionStorage.storedReload = JSON.stringify(storedReload);
+}
+
+/*
+*  Get stored times
+*/
+try {
+    var storedTime = JSON.parse(sessionStorage.storedTime); // Get stored time
+}
+catch(err) {
+    storedTime = "";
+    sessionStorage.storedTime = JSON.stringify(storedTime);
+}
+
+var inputTime;
+var inputMs;
+if(storedTime != null) {
+    inputTime = storedTime.slice(0, 8);
+    inputMs = storedTime.slice(9);
+}
+// Set arrival time button
+var showArrTime = document.createElement("tr"); 
+var showArrTimeTd = document.createElement("td");
+var showArrTimeTd2 = document.createElement("td");
+var pEle = document.querySelector("#troop_confirm_go"); // Button comes after this element
+var btn = document.createElement("a"); // Create button called btn as a link because any button causes the attack to launch
+btn.setAttribute("id", "arrTime"); 
+btn.setAttribute("class", "btn"); 
+btn.setAttribute("style", "cursor:pointer;");
+pEle.parentNode.insertBefore(btn, pEle.nextElementSibling); // Place btn after pEle
+var t = document.createTextNode("Set arrival time"); 
+btn.appendChild(t); 
+
+// Create cell where set arrival time is shown
+var dateArrival = document.querySelector("#date_arrival"); // Cell of relative_time
+showArrTime.appendChild(showArrTimeTd);
+showArrTime.appendChild(showArrTimeTd2);
+dateArrival.parentNode.parentNode.insertBefore(showArrTime, dateArrival.parentNode[1]); // Insert tablerow as last cell
+showArrTimeTd.innerHTML = "Set arrival:";
+showArrTimeTd2.setAttribute("id", "setArrTime");
+// Display the set time if exist, else say "No time set"
+if(inputTime != null && inputMs != null) {
+    showArrTimeTd2.innerHTML = "" + inputTime + ":" + inputMs;
+} else {
+    showArrTimeTd2.innerHTML = "No time set";
+    inputTime = "";
+    inputMs = "";
+}
+
+showArrTimeTd.setAttribute("id", "showArrTime");
+btn.onclick = function() {
+    "use strict";
+    storedTime = JSON.parse(sessionStorage.storedTime);
+    reload = JSON.parse(sessionStorage.storedReload);
+	var time = document.querySelector(".relative_time").textContent.slice(-8); // Get the time of arrival if sent now
+	inputTime = prompt("Please enter desired arrival time", time); // Save desired time
+    inputMs = parseInt(prompt("Please enter approximate milliseconds", "000")); // Save desired ms
+    delay = parseInt(delayTime) + parseInt(inputMs); // setTimeout time
+    if(delay < 0) {
+        delay = 0;
+    }
+    var setTime = inputTime + ":" + inputMs;
+    showArrTimeTd2.innerHTML = inputTime + ":" + inputMs;
+    storedTime = setTime; // Update set arrival time
+    sessionStorage.storedTime = JSON.stringify(storedTime);
+    reload = true;
+    sessionStorage.reload = JSON.stringify(reload);
+};
+
+
+/*
+* Delay
+*/
+// Create delay input
+var delayTime = parseInt(localStorage.delayTime);
+if(delayTime == null) {
+    delayTime = 0;
+    localStorage.delayTime = JSON.stringify(delayTime);
+}
+
+// Create okay button to save delay
+var delayTr = document.createElement("tr"); 
+var delayTd1 = document.createElement("td");
+var delayTd2 = document.createElement("td");
+var parent1 = document.querySelector("#date_arrival"); // Cell of relative_time
+delayTr.appendChild(delayTd1);
+delayTr.appendChild(delayTd2);
+parent1.parentNode.parentNode.insertBefore(delayTr, parent1.parentNode[1]); // Insert tablerow as last cell
+delayTd1.innerHTML = "Offset";
+delayTd2.innerHTML = "<input id = 'delayInput' value = " + delayTime + " style = 'width: 50%'></input> <a id = 'delayButton' class = 'btn'>OK</a>";
+
+/*
+* Create go back in x minutes
+*/
+var reloadBefore = parseInt(sessionStorage.reloadBefore);
+if(reloadBefore == null) {
+    reloadBefore = 1;
+}
+
+// Create input to set go back minutes
+var reloadTr = document.createElement("tr"); 
+var reloadTd1 = document.createElement("td");
+var reloadTd2 = document.createElement("td");
+var parent1 = document.querySelector("#date_arrival"); // Cell of relative_time
+reloadTr.appendChild(reloadTd1);
+reloadTr.appendChild(reloadTd2);
+parent1.parentNode.parentNode.insertBefore(reloadTr, parent1.parentNode[1]); // Insert tablerow as last cell
+reloadTd1.innerHTML = "Reload in minutes";
+reloadTd2.innerHTML = "<input id = 'reloadInput' value = " + reloadBefore + " style = 'width: 50%'></input> <a id = 'reloadButton' class = 'btn'>OK</a>";
+
+$("#reloadButton").click(function() {
+    reloadBefore = parseInt($("#reloadInput").val());
+    sessionStorage.reloadBefore = JSON.stringify(reloadBefore);
+})
+
+var delay = parseInt(delayTime) + parseInt(inputMs); // setTimeout time
+$("#delayButton").click(function() {
+    delayTime = parseInt($("#delayInput").val());
+    localStorage.delayTime =  JSON.stringify(delayTime);
+    delay = parseInt(delayTime) + parseInt(inputMs); // setTimeout time
+    if(delay < 0) {
+        delay = 0;
+    }
+})
+var intervalCheck = setInterval(function retime() {
+    "use strict";
+    arrival = document.querySelector(".relative_time").textContent; // Get time of arrival if sent now for comparison
+    if(arrival.slice(-8) === inputTime) {
+        setTimeout(function() {
+            document.querySelector("#troop_confirm_go").click();
+            sessionStorage.reload = JSON.stringify(false);
+            sessionStorage.storedTime = "";
+        }, delay);
+        clearInterval(intervalCheck);
+    }
+}, window.intervalTime);
+
+var minute = inputTime.substr(3,2) - reloadBefore; // Get minute of input and subtract reloadBefore from it
+var arriveNow = document.querySelector(".relative_time").textContent.slice(-8); // Get relative_time to compare
+var timeReload;
+setInterval(function() {
+    minute = inputTime.substr(3,2) - reloadBefore;
+    arriveNow = document.querySelector(".relative_time").textContent.slice(-8);
+    timeReload = inputTime.substr(0,3) + minute + inputTime.substr(5,3); // Time stitched together with the minute subtracted by reloadBefore
+    if(timeReload != -1 && arriveNow === timeReload && reload) {
+        window.location.reload();
+    }
+}, 1000);
